@@ -582,7 +582,7 @@ def write_to_historized_landing(
         write_mode: Optional explicit write mode override (e.g., 'upsert').
                     If not provided, derived from table_load_type.
     """
-    # DeltaLakeHandler is already in namespace after %run master/utils_delta_handler
+    # DeltaLakeHandler is already in namespace after %run nb_utils_delta_handler
     
     # Calculate hash for change detection
     df_hashed = source_df.withColumn(

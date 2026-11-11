@@ -85,7 +85,7 @@ TARGET_SCHEMA = "base"
 
 # CELL ********************
 
-%run utils_delta_handler
+%run nb_utils_delta_handler
 
 # METADATA ********************
 
@@ -98,7 +98,7 @@ TARGET_SCHEMA = "base"
 
 # CELL ********************
 
-%run utils_error_handling
+%run nb_utils_error_handling
 
 # METADATA ********************
 
@@ -109,7 +109,7 @@ TARGET_SCHEMA = "base"
 
 # CELL ********************
 
-%run utils_base
+%run nb_utils_base
 
 # METADATA ********************
 

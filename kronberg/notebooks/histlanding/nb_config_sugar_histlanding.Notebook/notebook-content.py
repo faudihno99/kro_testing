@@ -12,7 +12,7 @@
 # MARKDOWN ********************
 
 # ### Sugar Config
-# Called by notebook `build_histlanding`
+# Called by notebook `nb_build_histlanding`
 
 # CELL ********************
 

@@ -30,7 +30,7 @@ from datetime import datetime
 
 # CELL ********************
 
-%run utils_delta_handler
+%run nb_utils_delta_handler
 
 # METADATA ********************
 
@@ -41,7 +41,7 @@ from datetime import datetime
 
 # CELL ********************
 
-%run utils_base
+%run nb_utils_base
 
 # METADATA ********************
 
