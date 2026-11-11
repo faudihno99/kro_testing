@@ -1,0 +1,47 @@
+{
+  "name": "Custom",
+  "textClasses": {
+    "label": {
+      "fontFace": "wf_standard-font, helvetica, arial, sans-serif"
+    },
+    "callout": {
+      "color": "#001D3D",
+      "fontSize": 25
+    }
+  },
+  "dataColors": [
+    "#003566",
+    "#FBB327",
+    "#001D3D",
+    "#6B007B",
+    "#E044A7",
+    "#744EC2",
+    "#D9B300",
+    "#D64550"
+  ],
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [
+          {
+            "transparency": 100
+          }
+        ]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [
+          {
+            "color": {
+              "solid": {
+                "color": "#FFFFFF"
+              }
+            },
+            "transparency": 0
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Dataflow",
+    "displayName": "gen2_te_withgit"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "5055ad5f-cb77-8bf3-4d32-bbb7f80346e7"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "lh_roadshow"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "e181e67f-123d-a880-44c2-ffea4d2fc144"
+  }
+}

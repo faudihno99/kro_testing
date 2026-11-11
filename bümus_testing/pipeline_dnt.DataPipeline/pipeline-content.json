@@ -1,0 +1,35 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "name": "GetToken",
+        "type": "WebActivity",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "method": "POST",
+          "headers": {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "relativeUrl": "",
+          "body": {
+            "grant_type": "client_credentials",
+            "client_id": "robert.kowitz@buesum.de",
+            "client_secret": "Buesum2025#",
+            "audience": "https://weather.api.dtn.com"
+          }
+        },
+        "externalReferences": {
+          "connection": "ca516445-38f4-4822-a849-ad17ddefcb8b"
+        }
+      }
+    ]
+  }
+}

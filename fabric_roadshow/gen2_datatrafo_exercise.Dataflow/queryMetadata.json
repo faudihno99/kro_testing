@@ -1,0 +1,16 @@
+{
+  "formatVersion": "202502",
+  "computeEngineSettings": {
+    "allowFastCopy": false
+  },
+  "name": "gen2_datatrafo_exercise",
+  "queryGroups": [],
+  "documentLocale": "en-US",
+  "connections": [
+    {
+      "path": "Lakehouse",
+      "kind": "Lakehouse",
+      "connectionId": "{\"ClusterId\":\"15fdf901-c2f8-46be-8747-c021d223343b\",\"DatasourceId\":\"4843f216-e90e-4faa-af6a-c260c7682fca\"}"
+    }
+  ]
+}
