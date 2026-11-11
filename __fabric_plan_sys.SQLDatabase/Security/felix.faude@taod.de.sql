@@ -1,6 +1,0 @@
-CREATE USER [felix.faude@taod.de]
-    WITH SID = 0x720159092A2CA34A857DBD2AD8818863, TYPE = E;
-
-
-GO
-
