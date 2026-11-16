@@ -797,9 +797,10 @@ def process_base(
 
         target_primary_keys = config["target_primary_keys"]
         hash_pk_column_name = "hash_pk"
+        # Metadata columns (_source, _load_timestamp, _change_type, _commit_*) are
+        # always excluded centrally in nb_utils_general_hashing, no need to list them.
         exclude_from_hash = target_primary_keys + [
-            hash_pk_column_name, hash_diff_column_name, "_change_type",
-            "_load_timestamp", "_commit_version", "_commit_timestamp"
+            hash_pk_column_name, hash_diff_column_name
         ]
         columns_to_hash = derive_hash_diff_columns(df, exclude_from_hash)
 

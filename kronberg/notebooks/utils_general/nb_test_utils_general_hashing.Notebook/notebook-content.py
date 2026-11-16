@@ -246,12 +246,70 @@ def test_derive_hash_diff_columns_excludes_keys_and_metadata(spark):
     )
 
     result = derive_hash_diff_columns(
-        df, ["id", "hash_pk", "hash_diff", "_change_type", "_load_timestamp"]
+        df, ["id", "hash_pk", "hash_diff"]
     )
 
     assert result == ["value"], f"expected ['value'], got {result}"
 
     print("test_derive_hash_diff_columns_excludes_keys_and_metadata passed successfully")
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+def test_add_hash_diff_strips_metadata_columns(spark):
+    """
+    Tests that metadata columns are never part of the hash.
+
+    - **What**: Validates the central _EXCLUDED_HASH_COLUMNS handling.
+    - **How**: Hashes a payload column together with _source and _load_timestamp,
+      then compares against hashing the payload column alone.
+    - **Expectations**: Both hashes are equal, so metadata had no effect.
+    """
+    df = spark.createDataFrame(
+        [(1, "a", "sugar", "2024-01-01 00:00:00")],
+        ["id", "value", "_source", "_load_timestamp"],
+    )
+
+    with_metadata = add_hash_diff(df, ["value", "_source", "_load_timestamp"]).collect()[0]
+    without_metadata = add_hash_diff(df, ["value"]).collect()[0]
+
+    assert with_metadata["hash_diff"] == without_metadata["hash_diff"], \
+        "metadata columns must not affect hash_diff"
+
+    print("test_add_hash_diff_strips_metadata_columns passed successfully")
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+def test_add_hash_diff_keeps_underscore_payload_columns(spark):
+    """
+    Tests that non-metadata underscore columns stay part of the hash.
+
+    - **What**: Guards against a prefix-based exclusion rule.
+    - **How**: Hashes a payload column together with '_module'.
+    - **Expectations**: The hash differs from hashing the payload column alone.
+    """
+    df = spark.createDataFrame([(1, "a", "crm")], ["id", "value", "_module"])
+
+    with_module = add_hash_diff(df, ["value", "_module"]).collect()[0]
+    without_module = add_hash_diff(df, ["value"]).collect()[0]
+
+    assert with_module["hash_diff"] != without_module["hash_diff"], \
+        "_module is payload and must stay part of the hash"
+
+    print("test_add_hash_diff_keeps_underscore_payload_columns passed successfully")
 
 # METADATA ********************
 
@@ -341,6 +399,28 @@ test_add_hash_pk_empty_column_list_raises(spark)
 # CELL ********************
 
 test_derive_hash_diff_columns_excludes_keys_and_metadata(spark)
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+test_add_hash_diff_strips_metadata_columns(spark)
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+test_add_hash_diff_keeps_underscore_payload_columns(spark)
 
 # METADATA ********************
 

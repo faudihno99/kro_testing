@@ -9,6 +9,20 @@
 # META   "dependencies": {}
 # META }
 
+# MARKDOWN ********************
+
+# ### Sugar Config (base)
+# Called by notebook `nb_build_base`.
+#
+# **Config rule — metadata columns**
+#
+# - `_source` (source system, e.g. `"sugar"`) and `_load_timestamp` are metadata and must be
+#   listed in every `column_mapping` so they reach the target table.
+# - They are never part of `hashdiff_cols` / `payload_columns` and are stripped automatically by
+#   `nb_utils_general_hashing` if they are.
+# - Only names in `_EXCLUDED_HASH_COLUMNS` count as metadata. Regular fields such as `_module`
+#   or `_link` stay payload and belong in `hashdiff_cols`.
+
 # CELL ********************
 
 # Sugar Config
@@ -30,6 +44,8 @@ SUGAR_CONFIG = [
         "target_primary_keys": PRIMARY_KEYS_SUGAR,
         "column_mapping": {
             "id": "id",
+            "_source": "_source",
+            "_load_timestamp": "_load_timestamp",
             "abc_classification_c": "abc_classification_c",
             "billing_address_city": "billing_address_city",
             "billing_address_state": "billing_address_state",
@@ -320,6 +336,8 @@ SUGAR_CONFIG = [
         "target_primary_keys": PRIMARY_KEYS_SUGAR,
         "column_mapping": {
             "id": "id",
+            "_source": "_source",
+            "_load_timestamp": "_load_timestamp",
             "date_start": "date_start",
             "date_end": "date_end",
             "name": "name",
@@ -380,6 +398,8 @@ SUGAR_CONFIG = [
         "target_primary_keys": PRIMARY_KEYS_SUGAR,
         "column_mapping": {
             "id": "id",
+            "_source": "_source",
+            "_load_timestamp": "_load_timestamp",
             "date_start": "date_start",
             "date_end": "date_end",
             "name": "name",
@@ -437,6 +457,8 @@ SUGAR_CONFIG = [
         "target_primary_keys": PRIMARY_KEYS_SUGAR,
         "column_mapping": {
             "id": "id",
+            "_source": "_source",
+            "_load_timestamp": "_load_timestamp",
             "first_name": "first_name",
             "last_name": "last_name",
             "email1": "email1",
@@ -526,6 +548,8 @@ SUGAR_CONFIG = [
         "target_primary_keys": PRIMARY_KEYS_SUGAR,
         "column_mapping": {
             "id": "id",
+            "_source": "_source",
+            "_load_timestamp": "_load_timestamp",
             "first_name": "first_name",
             "last_name": "last_name",
             "email1": "email1",
@@ -651,6 +675,8 @@ SUGAR_CONFIG = [
         "target_primary_keys": PRIMARY_KEYS_SUGAR,
         "column_mapping": {
             "id": "id",
+            "_source": "_source",
+            "_load_timestamp": "_load_timestamp",
             "sales_stage": "sales_stage",
             "name": "name",
             "opportunity_type": "opportunity_type",
@@ -732,6 +758,8 @@ SUGAR_CONFIG = [
         "target_primary_keys": PRIMARY_KEYS_SUGAR,
         "column_mapping": {
             "id": "id",
+            "_source": "_source",
+            "_load_timestamp": "_load_timestamp",
             "name": "name",
             "status": "status",
             "priority": "priority",
@@ -819,6 +847,8 @@ SUGAR_CONFIG = [
         "target_primary_keys": PRIMARY_KEYS_SUGAR,
         "column_mapping": {
             "id": "id",
+            "_source": "_source",
+            "_load_timestamp": "_load_timestamp",
             "name": "name",
             "description": "description",
             "from_addr_name": "from_addr_name",
@@ -905,6 +935,8 @@ SUGAR_CONFIG = [
         "target_primary_keys": ["sugar_id"],
         "column_mapping": {
             "id": "sugar_id",
+            "_source": "_source",
+            "_load_timestamp": "_load_timestamp",
             "vendor_part_num": "product_id",
             "name": "name",
             "calc_prod_group_c": "product_group",
@@ -958,6 +990,8 @@ SUGAR_CONFIG = [
         "target_primary_keys": PRIMARY_KEYS_SUGAR,
         "column_mapping": {
             "id": "id",
+            "_source": "_source",
+            "_load_timestamp": "_load_timestamp",
             "name": "name",
             "description": "description",
             "assigned_user_id": "assigned_user_id",
@@ -1019,6 +1053,8 @@ LINK_TABLES_SUGAR = [
 for link in LINK_TABLES_SUGAR:
     col_mapping = {
         "id": "id",
+        "_source": "_source",
+        "_load_timestamp": "_load_timestamp",
         "date_modified": "date_modified",
         "name": "name",
         "parent_id": "parent_id",

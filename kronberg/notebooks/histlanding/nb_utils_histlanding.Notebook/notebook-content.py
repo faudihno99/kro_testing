@@ -574,7 +574,10 @@ def write_to_historized_landing(
                     If not provided, derived from table_load_type.
     """
     # DeltaLakeHandler is already in namespace after %run nb_utils_delta_handler
-    
+
+    # Add the source of the row. Excluded from the hash, see nb_utils_general_hashing.
+    source_df = source_df.withColumn("_source", F.lit(source_system))
+
     # Calculate hash for change detection
     df_hashed = add_hash_diff(source_df, payload_columns)
 
