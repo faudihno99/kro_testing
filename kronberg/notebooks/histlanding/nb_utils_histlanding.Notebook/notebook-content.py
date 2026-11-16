@@ -34,6 +34,17 @@ from pyspark.sql.window import Window
 
 # CELL ********************
 
+%run nb_utils_general_hashing
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
 # =============================================================================
 # CHANGELOG
 # -----------------------------------------------------------------------------
@@ -439,26 +450,6 @@ logger = PlatformLogger(name="hist_landing").get_logger()
 
 
 # ========== Hashing Utility ==========
-
-def generate_sha2_hash(hash_input_columns: list[str]):
-    """
-    Generate SHA-256 hash for a list of input columns.
-    Concatenates columns as strings and hashes the binary representation.
-    
-    Args:
-        hash_input_columns: List of column names to hash
-        
-    Returns:
-        Column expression for the hash
-    """
-    hash_input_columns_expr = [
-        F.col(column).cast("string") for column in hash_input_columns
-    ]
-    hash_column_expr = F.to_binary(
-        F.sha2(F.concat_ws("", *hash_input_columns_expr), 256), F.lit("hex")
-    )
-    return hash_column_expr
-
 
 def generate_zero_hash_for_nulls():
     """
