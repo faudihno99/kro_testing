@@ -638,4 +638,3 @@ test_apply_date_format_formats_not_dict(spark)
 # META   "language": "python",
 # META   "language_group": "synapse_pyspark"
 # META }
-
