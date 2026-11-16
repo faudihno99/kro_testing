@@ -34,6 +34,17 @@ logger = logging.getLogger(__name__)
 # META   "language_group": "synapse_pyspark"
 # META }
 
+# CELL ********************
+
+%run nb_utils_general_hashing
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
 # MARKDOWN ********************
 
 # #### Transformation Utils
