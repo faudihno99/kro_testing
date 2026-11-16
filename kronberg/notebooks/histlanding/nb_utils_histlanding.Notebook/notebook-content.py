@@ -576,9 +576,7 @@ def write_to_historized_landing(
     # DeltaLakeHandler is already in namespace after %run nb_utils_delta_handler
     
     # Calculate hash for change detection
-    df_hashed = source_df.withColumn(
-        "hash_diff", generate_sha2_hash(hash_input_columns=payload_columns)
-    )
+    df_hashed = add_hash_diff(source_df, payload_columns)
 
     # Determine write mode:
     # - If explicitly provided (e.g. "upsert"), use it directly.
@@ -1029,9 +1027,7 @@ def write_jira_data_to_lakehouse(spark, df, database, schema, table, merge_keys,
     if not payload_cols:
         payload_cols = [c for c in df.columns if c not in ["_load_timestamp"]]
     
-    df_hashed = df.withColumn(
-        "hash_diff", generate_sha2_hash(hash_input_columns=payload_cols)
-    )
+    df_hashed = add_hash_diff(df, payload_cols)
 
     handler = DeltaLakeHandler(
         spark=spark,

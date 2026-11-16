@@ -796,14 +796,12 @@ def process_base(
                 df = apply_transformation(df, transformation["type"], transformation)
 
         target_primary_keys = config["target_primary_keys"]
+        hash_pk_column_name = "hash_pk"
         exclude_from_hash = target_primary_keys + [
-            hash_diff_column_name, "_change_type", "_load_timestamp",
-            "_commit_version", "_commit_timestamp"
+            hash_pk_column_name, hash_diff_column_name, "_change_type",
+            "_load_timestamp", "_commit_version", "_commit_timestamp"
         ]
-        columns_to_hash = [
-            col for col in df.columns
-            if col not in exclude_from_hash
-        ]
+        columns_to_hash = derive_hash_diff_columns(df, exclude_from_hash)
 
         if cdc:
             # update_preimage enthält den alten Zustand vor einem Update.
@@ -819,7 +817,8 @@ def process_base(
         else:
             df = df.dropDuplicates(target_primary_keys)
 
-        df = df.withColumn(hash_diff_column_name, generate_sha2_hash(columns_to_hash))
+        df = add_hash_diff(df, columns_to_hash, target_col=hash_diff_column_name)
+        df = add_hash_pk(df, target_primary_keys, target_col=hash_pk_column_name)
 
         # Step 5: Great Expectations validation (in-process, before write)
         if config.get("gx_validation"):
