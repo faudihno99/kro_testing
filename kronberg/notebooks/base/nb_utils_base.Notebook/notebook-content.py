@@ -296,79 +296,6 @@ def apply_lookup(df: DataFrame, params: dict) -> DataFrame:
     return df
 
 
-def apply_delta_lookup(df: DataFrame, params: dict) -> DataFrame:
-    """
-    Performs a left join with a Delta Lakehouse table to derive new columns.
-    Mirrors apply_lookup but reads from a Delta table instead of a CSV file.
-
-    Args:
-        df (DataFrame): Input DataFrame
-        params (dict): Parameters containing:
-            - 'database' (str): Lakehouse database name (resolved via 'variables_global.lh_name')
-            - 'schema' (str): Schema name (e.g., 'base')
-            - 'table' (str): Table name (e.g., 'sharepoint_mapping_vietnam')
-            - 'join_col_source' (str): Join column in the source DataFrame
-            - 'join_col_lookup' (str): Join column in the mapping Delta table
-            - 'target_cols' (dict): Mapping of {lookup_col: target_col_name} to add from mapping table
-
-    Returns:
-        DataFrame: Transformed DataFrame with derived columns added
-    """
-    database = params.get("database")
-    schema = params.get("schema")
-    table = params.get("table")
-    join_col_source = params.get("join_col_source")
-    join_col_lookup = params.get("join_col_lookup")
-    target_cols = params.get("target_cols", {})
-
-    if not all([database, schema, table, join_col_source, join_col_lookup]):
-        return df
-
-    # Read the mapping Delta table
-    mapping_df = spark.read.format("delta").table(f"{database}.{schema}.{table}")
-
-    # Rename ALL lookup columns to avoid name collisions before join
-    for c in mapping_df.columns:
-        mapping_df = mapping_df.withColumnRenamed(c, f"_tmp_{c}")
-
-    renamed_join_col = f"_tmp_{join_col_lookup}"
-
-    # Defensive Join: Cast both sides to string and trim to handle potential type/whitespace mismatches
-    join_cond = (F.trim(df[join_col_source].cast("string")) == 
-                 F.trim(mapping_df[renamed_join_col].cast("string")))
-    
-    df = df.join(mapping_df, join_cond, "left")
-
-    # Rename the desired columns to their final target names
-    for lookup_col, target_name in target_cols.items():
-        renamed_lookup_col = f"_tmp_{lookup_col}"
-        if renamed_lookup_col in df.columns:
-            df = df.withColumn(target_name, F.col(renamed_lookup_col))
-
-    # Drop all columns that originated from the mapping_df
-    tmp_cols = [c for c in df.columns if c.startswith("_tmp_")]
-    df = df.drop(*tmp_cols)
-
-    # Assert: every derived column must be fully populated after the join.
-    # A NULL indicates that the source join key had no matching entry in the mapping table.
-    for target_name in target_cols.values():
-        null_df = df.filter(F.col(target_name).isNull())
-        null_count = null_df.count()
-        
-        if null_count > 0:
-            missing_keys = [row[0] for row in null_df.select(join_col_source).distinct().collect()]
-            print(f"ERROR: Missing mapping for column '{target_name}'. The following values in '{join_col_source}' were not found in '{database}.{schema}.{table}': {missing_keys}")
-            
-        '''assert null_count == 0, (
-            f"apply_delta_lookup: column '{target_name}' contains {null_count} NULL value(s) "
-            f"after joining '{database}.{schema}.{table}' on "
-            f"'{join_col_source}' = '{join_col_lookup}'. "
-            f"Ensure all values in '{join_col_source}' have a corresponding entry in the mapping table."
-        )'''
-
-    return df
-
-
 def concat_columns(df: DataFrame, params: dict) -> DataFrame:
     """
     Concatenates multiple columns with a separator.
@@ -391,52 +318,6 @@ def concat_columns(df: DataFrame, params: dict) -> DataFrame:
         return df
 
     return df.withColumn(output_col, F.concat_ws(separator, *[F.col(c) for c in input_cols]))
-
-
-def append_string_to_column(
-    df: DataFrame,
-    column_names: Union[str, List[str]],
-    params: dict,  # Expected: {'suffix': str, 'separator': str (optional, default: '_')}
-) -> DataFrame:
-    """
-    Appends a string to the values in one or multiple columns with a separator in parallel.
-
-    Args:
-        df (DataFrame): Input DataFrame
-        column_names (Union[str, List[str]]): Name(s) of the column(s) to append to
-        params (dict): Parameters containing:
-            - 'suffix' (str): String to append
-            - 'separator' (str, optional): Separator between original value and appended string (default: "_")
-
-    Returns:
-        DataFrame: DataFrame with the modified column(s) in place
-    """
-    suffix = params.get("suffix", "")
-    separator = params.get("separator", "_")
-    return _apply_column_transformation(
-        df,
-        column_names,
-        lambda col: F.concat(F.col(col), F.lit(separator), F.lit(suffix)),
-    )
-
-
-def left_n(df: DataFrame, column_names: Union[str, List[str]], n: int) -> DataFrame:
-    """
-    Extracts the first n characters from one or multiple string columns in parallel.
-
-    Args:
-        df (DataFrame): Input DataFrame
-        column_names (Union[str, List[str]]): Name(s) of the column(s) to extract from
-        n (int): Number of characters to extract from the left
-
-    Returns:
-        DataFrame: DataFrame with the modified column(s) containing the first n characters
-    """
-    return _apply_column_transformation(
-        df, column_names, lambda col: F.substring(F.col(col), 1, n)
-    )
-
-
 
 
 # ========== Column Selection and Renaming ==========
@@ -498,143 +379,6 @@ def cast_data_types(
 
 
 # ========== Timestamp Operations ==========
-
-
-def extract_from_timestamp(
-    df: DataFrame,
-    column_names: Union[str, List[str]],
-    params: dict,  # Expected: {'extract_type': str, 'output_column_name': str, 'format': str (optional)}
-) -> DataFrame:
-    """
-    Adds a new column by extracting date, time, year, month, or calendar week from a timestamp column.
-
-    Args:
-        df (DataFrame): The input DataFrame.
-        column_names (Union[str, List[str]]): The name(s) of the timestamp column(s) to extract from.
-        params (dict): Parameters containing:
-            - 'extract_type' (str): Type of extraction - "date", "time", "year", "month", or "week".
-            - 'output_column_name' (str): The name of the new column.
-            - 'format' (str, optional): The format string. Only used for "date" and "time" extractions.
-                                       If None, defaults to 'yyyy-MM-dd' for date or 'HH:mm:ss' for time.
-                                       Ignored for year, month, and week extractions.
-
-    Returns:
-        DataFrame: The modified DataFrame with the new column containing the extracted value.
-
-    Raises:
-        ValueError: If extract_type is not one of the supported types.
-    """
-    if isinstance(column_names, str):
-        column_names = [column_names]
-
-    extract_type = params.get("extract_type")
-    output_column_name = params.get("output_column_name")
-    format = params.get("format")
-
-    valid_types = ["date", "time", "year", "month", "week"]
-    if extract_type not in valid_types:
-        raise ValueError(f"extract_type must be one of {valid_types}")
-
-    # Use the first column name for extraction (supporting multiple columns for consistency with other functions)
-    input_column_name = column_names[0]
-
-    # Apply the appropriate transformation
-    if extract_type == "date":
-        if format is None:
-            format = "yyyy-MM-dd"
-        df = df.withColumn(
-            output_column_name, F.to_date(F.col(input_column_name), format)
-        )
-
-    elif extract_type == "time":
-        if format is None:
-            format = "HH:mm:ss"
-        df = df.withColumn(
-            output_column_name, F.date_format(F.col(input_column_name), format)
-        )
-
-    elif extract_type == "year":
-        df = df.withColumn(output_column_name, F.year(F.col(input_column_name)))
-
-    elif extract_type == "month":
-        df = df.withColumn(output_column_name, F.month(F.col(input_column_name)))
-
-    elif extract_type == "week":
-        df = df.withColumn(output_column_name, F.weekofyear(F.col(input_column_name)))
-
-    return df
-
-
-def enforce_min_timestamp(
-    df: DataFrame, column_names: Union[str, List[str]]
-) -> DataFrame:
-    """
-    Ensures all timestamp values in the given columns are >= '1970-01-01 00:00:00'.
-
-    If a timestamp is earlier, it is replaced by '1970-01-01 00:00:00'.
-
-    - Works for both string and timestamp columns.
-    - Returns DataFrame with same schema (columns remain timestamps).
-
-    Args:
-        df (DataFrame): Input DataFrame.
-        column_names (Union[str, List[str]]): Column(s) to enforce minimum timestamp on.
-
-    Returns:
-        DataFrame with enforced minimum timestamp columns.
-    """
-    min_ts = F.lit(datetime(1970, 1, 1))
-    return _apply_column_transformation(
-        df,
-        column_names,
-        lambda colname: F.when((F.col(colname)) < min_ts, min_ts).otherwise(
-            F.col(colname)
-        ),
-    )
-
-
-def build_combined_timestamp(
-    df: DataFrame,
-    column_names: Union[str, List[str]],
-    params: dict,
-) -> DataFrame:
-    """
-    Creates a combined timestamp by combining date and time columns.
-
-    Args:
-        df (DataFrame): Input DataFrame.
-        column_names (Union[str, List[str]]): Target column names for the combined timestamp.
-        params (dict): Parameters containing:
-            - 'date_column' (str): Name of the date column.
-            - 'time_column' (str): Name of the time column.
-            - 'output_column_name' (str): Name of the output column.
-
-    Returns:
-        DataFrame: DataFrame with combined timestamp columns.
-
-    Raises:
-        ValueError: If 'date_column' or 'time_column' are not provided in params.
-    """
-    date_column = params.get("date_column")
-    time_column = params.get("time_column")
-    output_column_name = params.get("output_column_name")
-
-    if isinstance(column_names, str):
-        column_names = [column_names]
-
-    # Create the transformation expression
-    combined_timestamp_expr = F.to_timestamp(
-        F.concat_ws(" ", F.col(date_column), F.col(time_column))
-    )
-
-    # Always add as a new column - use column_names[0] as the output column name
-    output_name = column_names[0] if column_names else output_column_name
-
-    # Build select expression with all existing columns plus the new combined timestamp column
-    select_cols = [F.col(col) for col in df.columns]
-    select_cols.append(combined_timestamp_expr.alias(output_name))
-
-    return df.select(*select_cols)
 
 
 def apply_date_format(
@@ -718,69 +462,6 @@ def apply_date_format(
 # ========== Complex Operations ==========
 
 
-def unpivot_multi_columns(
-    df: DataFrame,
-    key_columns: List[str],
-    column_mappings: dict,
-    identifier_pattern: str = r"(\w+)(\d+)_",
-    auto_passthrough: bool = True,
-    identifier_name: str = "identifier",
-) -> DataFrame:
-    """
-    General unpivot function that maps specified columns to output columns.
-
-    Parameters:
-        df (DataFrame): Input DataFrame
-        key_columns (List[str]): List of columns to keep as identifiers (won't be unpivoted)
-        column_mappings (dict): Dict where key=output_column_name, value=list of input columns
-        identifier_pattern (str): Regex to extract identifier from column names
-        auto_passthrough (bool): If True, all unmapped columns become key columns (default: True)
-        identifier_name (str): Name for the identifier column in output
-
-    Returns:
-        DataFrame: Unpivoted DataFrame
-    """
-    # Find all mapped columns
-    mapped_columns = set()
-    for input_cols in column_mappings.values():
-        mapped_columns.update(input_cols)
-
-    # Determine final key columns
-    if auto_passthrough:
-        # All columns except mapped ones become key columns
-        final_key_columns = [col for col in df.columns if col not in mapped_columns]
-    else:
-        # Only explicitly specified key columns
-        final_key_columns = key_columns
-
-    # Build stack expression
-    stack_items = []
-    for output_col, input_cols in column_mappings.items():
-        for input_col in input_cols:
-            # Extract identifier from column name
-            match = re.match(identifier_pattern, input_col)
-            identifier = match.group(2) if match else input_col
-            stack_items.extend([f"'{identifier}'", f"'{output_col}'", f"`{input_col}`"])
-
-    num_rows = sum(len(input_cols) for input_cols in column_mappings.values())
-    stack_expr = (
-        f"stack({num_rows}, {', '.join(stack_items)}) "
-        f"as ({identifier_name}, metric_type, metric_value)"
-    )
-
-    # Unpivot and pivot back
-    unpivoted = df.select(*final_key_columns, F.expr(stack_expr))
-    unpivoted = unpivoted.filter(F.col("metric_value").isNotNull())
-
-    result = (
-        unpivoted.groupBy(*final_key_columns, identifier_name)
-        .pivot("metric_type")
-        .agg(F.first("metric_value"))
-    )
-
-    return result
-
-
 def add_custom_column(
     df: DataFrame, column_name: str, column_expression: F.Column
 ) -> DataFrame:
@@ -796,114 +477,6 @@ def add_custom_column(
         DataFrame: DataFrame with the new or modified column
     """
     return df.withColumn(column_name, column_expression)
-
-
-# ========== DACH-specific Transformations ==========
-
-
-def apply_dach_cost_center_reduction(
-    df: DataFrame,
-    column_names: Union[str, List[str]],
-    params: dict = {}
-) -> DataFrame:
-    """
-    DACH-specific reduction of ledger amounts for cost center 464.
-
-    For every row where cost_center_number == 464, the given amount columns
-    (e.g. debit_local, credit_local) are multiplied by 0.5 (50%).
-    NULL values remain NULL, zero remains zero.
-    """
-    cost_center_col = params.get("cost_center_col", "cost_center_number")
-    cost_center_value = params.get("cost_center_value", 464)
-    factor = params.get("factor", 0.5)
-
-    condition = F.col(cost_center_col) == F.lit(cost_center_value)
-
-    return _apply_column_transformation(
-        df,
-        column_names,
-        lambda col: F.when(condition, F.col(col) * factor).otherwise(F.col(col))
-    )
-
-
-# ========== Jira Specific Transformations ==========
-
-def unnest_jira_comments(df: DataFrame, column_names: Union[str, List[str]], params: dict) -> DataFrame:
-    # Unnests a JSON column containing Jira comments and flattens it.
-    # The resulting table will be on comment level (one row per comment).
-    # Inputs: df, column_names (name of JSON column), params
-    # Outputs: DataFrame with flattened string columns
-    
-    from pyspark.sql.types import ArrayType, StringType, StructType, StructField
-    
-    col_name = column_names[0] if isinstance(column_names, list) else column_names
-    
-    schema = ArrayType(StructType([
-        StructField("id", StringType(), True),
-        StructField("author", StructType([
-            StructField("name", StringType(), True),
-            StructField("displayName", StringType(), True),
-            StructField("emailAddress", StringType(), True),
-            StructField("active", StringType(), True),
-        ]), True),
-        StructField("body", StringType(), True),
-        StructField("updateAuthor", StructType([
-            StructField("name", StringType(), True),
-            StructField("displayName", StringType(), True),
-            StructField("emailAddress", StringType(), True),
-        ]), True),
-        StructField("created", StringType(), True),
-        StructField("updated", StringType(), True),
-    ]))
-    
-    # Parse the JSON string into an array of structs
-    df = df.withColumn("parsed_comments", F.from_json(F.col(col_name), schema))
-    
-    # Explode the array to create one row per comment
-    df = df.withColumn("comment", F.explode_outer(F.col("parsed_comments")))
-    
-    # Extract flattened fields
-    df = df.withColumn(f"{col_name}_id", F.col("comment.id").cast("string"))
-    df = df.withColumn(f"{col_name}_author_name", F.col("comment.author.name").cast("string"))
-    df = df.withColumn(f"{col_name}_author_displayName", F.col("comment.author.displayName").cast("string"))
-    df = df.withColumn(f"{col_name}_author_emailAddress", F.col("comment.author.emailAddress").cast("string"))
-    df = df.withColumn(f"{col_name}_author_active", F.col("comment.author.active").cast("string"))
-    df = df.withColumn(f"{col_name}_body", F.col("comment.body").cast("string"))
-    df = df.withColumn(f"{col_name}_updateAuthor_name", F.col("comment.updateAuthor.name").cast("string"))
-    df = df.withColumn(f"{col_name}_updateAuthor_displayName", F.col("comment.updateAuthor.displayName").cast("string"))
-    df = df.withColumn(f"{col_name}_created", F.col("comment.created").cast("string"))
-    df = df.withColumn(f"{col_name}_updated", F.col("comment.updated").cast("string"))
-    
-    # Drop intermediate and original columns
-    df = df.drop("parsed_comments", "comment", col_name)
-    
-    return df
-
-# ========== Record Filtering and Cleaning ==========
-
-
-def remove_invalid_records(
-    df: DataFrame, column_names: Union[str, List[str]], params: dict
-) -> DataFrame:
-    """
-    Removes records where any of the specified columns contain NULL values or empty strings.
-
-    Args:
-        df (DataFrame): Input DataFrame
-        column_names (Union[str, List[str]]): Name(s) of the column(s) to check
-        params (dict): Parameters (not used, kept for structure consistency)
-
-    Returns:
-        DataFrame: DataFrame with rows containing NULLs or empty strings in specified columns removed
-    """
-    if isinstance(column_names, str):
-        column_names = [column_names]
-
-    for col_name in column_names:
-        df = df.filter(F.col(col_name).isNotNull())
-        df = df.filter(F.col(col_name) != "")
-
-    return df
 
 
 # ========== Utility and Orchestration Functions ==========
@@ -991,13 +564,8 @@ def call_utility_function(
     utility_function_map = {
         "round": lambda df, cols, p: round_column(df, cols, p["precision"]),
         "trim": lambda df, cols, p: trim_column(df, cols),
-        "left_n": lambda df, cols, p: left_n(df, cols, p["n"]),
-        "append_suffix": lambda df, cols, p: append_string_to_column(df, cols, p),
         "cast_data_types": lambda df, cols, p: cast_data_types(
             df, cols, p["data_type"]
-        ),
-        "extract_from_timestamp": lambda df, cols, p: extract_from_timestamp(
-            df, cols, p
         ),
         "add_custom_column": lambda df, cols, p: add_custom_column(
             df,
@@ -1008,19 +576,11 @@ def call_utility_function(
                 else p["column_expression"]
             ),
         ),
-        "enforce_min_timestamp": lambda df, cols, p: enforce_min_timestamp(df, cols),
-        "build_combined_timestamp": lambda df, cols, p: build_combined_timestamp(
-            df, cols, p
-        ),
-        "unnest_jira_comments": lambda df, cols, p: unnest_jira_comments(df, cols, p),
         "replace_values": lambda df, cols, p: replace_values(df, cols, p),
         "map_array_values": lambda df, cols, p: map_array_values(df, cols, p),
         "regex_replace_values": lambda df, cols, p: regex_replace_values(df, cols, p),
         "apply_lookup": lambda df, cols, p: apply_lookup(df, p),
-        "apply_delta_lookup": lambda df, cols, p: apply_delta_lookup(df, p),
         "concat_columns": lambda df, cols, p: concat_columns(df, p),
-        "remove_invalid_records": lambda df, cols, p: remove_invalid_records(df, cols, p),
-        "apply_dach_cost_center_reduction": lambda df, cols, p: apply_dach_cost_center_reduction(df, cols, p),
         "apply_date_format": lambda df, cols, p: apply_date_format(df, cols, p),
     }
 
@@ -1043,9 +603,10 @@ def apply_transformation(
     Args:
         df (DataFrame): Input PySpark DataFrame to be transformed
         transform_type (str): String specifying the type of transformation to apply
-                       Supported types: 'round', 'trim', 'left_n', 'append_suffix',
-                       'extract_from_timestamp', 'cast_data_types', 'add_custom_column',
-                       'remove_invalid_records', 'extract_nested_json', 'rename_columns'
+                       Supported types: 'round', 'trim', 'cast_data_types',
+                       'add_custom_column', 'replace_values', 'map_array_values',
+                       'regex_replace_values', 'apply_lookup', 'concat_columns',
+                       'apply_date_format'
                        Must match an entry in the utility_function_map
         transformation_config (dict): Dictionary containing transformation configuration with required fields:
                               {
@@ -1125,40 +686,6 @@ def apply_transformation(
 # META   "language": "python",
 # META   "language_group": "synapse_pyspark"
 # META }
-
-# CELL ********************
-
- # ========== Hashing Utility ==========
-
-def generate_sha2_hash(hash_input_columns: list[str]):
-    """
-    Generate SHA-256 hash for a list of input columns.
-    Concatenates columns as strings and hashes the binary representation.
-    
-    Args:
-        hash_input_columns: List of column names to hash
-        
-    Returns:
-        Column expression for the hash
-    """
-    hash_input_columns_expr = [
-        F.col(column).cast("string") for column in hash_input_columns
-    ]
-    hash_column_expr = F.to_binary(
-        F.sha2(F.concat_ws("", *hash_input_columns_expr), 256), F.lit("hex")
-    )
-    return hash_column_expr
-
-# METADATA ********************
-
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
-
-# MARKDOWN ********************
-
-# #### Processing
 
 # CELL ********************
 

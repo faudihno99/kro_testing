@@ -15,10 +15,9 @@
 # Focus: Unit tests for all utility functions from nb_utils_base and process_base()
 # Manual test (no CI)
 
-import json
 from unittest.mock import patch, MagicMock
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, TimestampType, DoubleType
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, TimestampType
 from datetime import datetime
 
 # METADATA ********************
@@ -136,130 +135,6 @@ def test_process_base_filters_update_preimage(spark):
 
 # CELL ********************
 
-def test_unnest_jira_comments(spark):
-    """
-    Tests the flattening of nested Jira comments from a JSON string into individual rows.
-
-    - **What**: Validates the 'unnest_jira_comments' utility.
-    - **How**: Mocks a DataFrame with a JSON string containing multiple comments (author, body, timestamps).
-    - **Expectations**: The output DataFrame should contain one row per comment, with flattened
-      metadata such as 'comments_author_name' and 'comments_body' accurately extracted.
-    """
-    sample_comments = [
-        {
-            "self": "https://example.com/rest/api/2/issue/111/comment/1",
-            "id": "1",
-            "author": {
-                "self": "https://example.com/rest/api/2/user?username=user1",
-                "name": "user1",
-                "key": "user1",
-                "emailAddress": "user1@example.com",
-                "avatarUrls": {
-                    "48x48": "url1",
-                    "24x24": "url2",
-                    "16x16": "url3",
-                    "32x32": "url4"
-                },
-                "displayName": "User One",
-                "active": True,
-                "timeZone": "Europe/Berlin"
-            },
-            "body": "Sample body 1",
-            "updateAuthor": {
-                "self": "https://example.com/rest/api/2/user?username=user1",
-                "name": "user1",
-                "key": "user1",
-                "emailAddress": "user1@example.com",
-                "avatarUrls": {
-                   "48x48": "url1",
-                   "24x24": "url2",
-                   "16x16": "url3",
-                   "32x32": "url4"
-                },
-                "displayName": "User One",
-                "active": True,
-                "timeZone": "Europe/Berlin"
-            },
-            "created": "2024-01-01T10:00:00.000+0000",
-            "updated": "2024-01-01T10:00:00.000+0000"
-        },
-        {
-            "self": "https://example.com/rest/api/2/issue/111/comment/2",
-            "id": "2",
-            "author": {
-                "self": "https://example.com/rest/api/2/user?username=user2",
-                "name": "user2",
-                "key": "user2",
-                "emailAddress": "user2@example.com",
-                "avatarUrls": {
-                    "48x48": "url1",
-                    "24x24": "url2",
-                    "16x16": "url3",
-                    "32x32": "url4"
-                },
-                "displayName": "User Two",
-                "active": True,
-                "timeZone": "Europe/Berlin"
-            },
-            "body": "Sample body 2",
-            "updateAuthor": {
-                "self": "https://example.com/rest/api/2/user?username=user2",
-                "name": "user2",
-                "key": "user2",
-                "emailAddress": "user2@example.com",
-                "avatarUrls": {
-                   "48x48": "url1",
-                   "24x24": "url2",
-                   "16x16": "url3",
-                   "32x32": "url4"
-                },
-                "displayName": "User Two",
-                "active": True,
-                "timeZone": "Europe/Berlin"
-            },
-            "created": "2024-01-02T10:00:00.000+0000",
-            "updated": "2024-01-02T10:00:00.000+0000"
-        }
-    ]
-
-    schema = StructType([
-        StructField("issue_key", StringType(), True),
-        StructField("comments", StringType(), True)
-    ])
-
-    data = [
-        ("PROJECT-123", json.dumps(sample_comments))
-    ]
-
-    df = spark.createDataFrame(data, schema)
-    result_df = unnest_jira_comments(df, ["comments"], {})
-
-    assert result_df.count() == 2, f"Expected 2 rows, got {result_df.count()}"
-
-    results = result_df.collect()
-
-    row1 = [r for r in results if r["comments_id"] == "1"][0]
-    assert row1["issue_key"] == "PROJECT-123", "Issue key mismatch"
-    assert row1["comments_author_name"] == "user1", "Author name mismatch"
-    assert row1["comments_author_displayName"] == "User One", "Display name mismatch"
-    assert row1["comments_author_emailAddress"] == "user1@example.com", "Email mismatch"
-    assert row1["comments_author_active"] == "true", "Active flag mismatch"
-    assert row1["comments_body"] == "Sample body 1", "Body mismatch"
-
-    row2 = [r for r in results if r["comments_id"] == "2"][0]
-    assert row2["comments_body"] == "Sample body 2", "Body mismatch"
-
-    print("test_unnest_jira_comments passed successfully")
-
-# METADATA ********************
-
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
-
-# CELL ********************
-
 def test_replace_values(spark):
     """
     Tests the standard key-value mapping utility.
@@ -338,66 +213,6 @@ def test_regex_replace_values(spark):
     assert results[2]["tags_mapped"] == "Unknown", "Value preservation failed for Unknown"
 
     print("test_regex_replace_values passed successfully")
-
-# METADATA ********************
-
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
-
-# CELL ********************
-
-def test_apply_dach_cost_center_reduction(spark):
-    """
-    Tests the DACH-specific cost center 464 reduction.
-
-    - **What**: Validates that rows with cost_center_number == 464 have their
-      amount columns reduced by 50 %.
-    - **Expectations**: Other cost centers stay unchanged, NULL remains NULL,
-      and zero remains zero.
-    """
-    schema = StructType([
-        StructField("voucher_no", StringType(), True),
-        StructField("cost_center_number", IntegerType(), True),
-        StructField("debit_local", DoubleType(), True),
-        StructField("credit_local", DoubleType(), True),
-    ])
-
-    data = [
-        ("V001", 464, 100.0, 200.0),
-        ("V002", 123, 100.0, 200.0),
-        ("V003", 464, None, 50.0),
-        ("V004", 464, 0.0, 0.0),
-    ]
-
-    df = spark.createDataFrame(data, schema)
-
-    result_df = apply_dach_cost_center_reduction(
-        df,
-        column_names=["debit_local", "credit_local"],
-        params={
-            "cost_center_col": "cost_center_number",
-            "cost_center_value": 464,
-            "factor": 0.5,
-        }
-    )
-
-    rows = {r["voucher_no"]: r.asDict() for r in result_df.collect()}
-
-    assert rows["V001"]["debit_local"] == 50.0, "464 debit reduction failed"
-    assert rows["V001"]["credit_local"] == 100.0, "464 credit reduction failed"
-
-    assert rows["V002"]["debit_local"] == 100.0, "non-464 debit was changed"
-    assert rows["V002"]["credit_local"] == 200.0, "non-464 credit was changed"
-
-    assert rows["V003"]["debit_local"] is None, "NULL debit on 464 should remain NULL"
-    assert rows["V003"]["credit_local"] == 25.0, "464 credit reduction failed"
-
-    assert rows["V004"]["debit_local"] == 0.0, "zero debit on 464 should remain zero"
-    assert rows["V004"]["credit_local"] == 0.0, "zero credit on 464 should remain zero"
-
-    print("test_apply_dach_cost_center_reduction passed successfully")
 
 # METADATA ********************
 
@@ -487,109 +302,6 @@ def test_apply_lookup(spark):
         shutil.rmtree(path)
 
     print("test_apply_lookup passed successfully")
-
-# METADATA ********************
-
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
-
-# CELL ********************
-
-def test_apply_delta_lookup_success(spark):
-    """
-    Tests the Delta table join-based lookup utility for column derivation.
-
-    - **What**: Validates 'apply_delta_lookup' for mapping source keys to derived columns.
-    - **How**: Mocks spark.read.format().table() to return an in-memory mapping DataFrame,
-      avoiding any real Delta table dependency.
-    - **Expectations**: The derived column 'account_group_name' is correctly populated for all rows
-      that have a match. The assert inside the function passes without error.
-    """
-
-    source_data = [(1001, "VCH-001"), (1002, "VCH-002")]
-    source_df = spark.createDataFrame(source_data, ["account_id", "voucher_number"])
-
-    mapping_data = [(1001, "Gruppe A"), (1002, "Gruppe B")]
-    mapping_df = spark.createDataFrame(mapping_data, ["account_id", "account_group_name"])
-
-    params = {
-        "database": "lh_fabric_1",
-        "schema": "base",
-        "table": "sharepoint_mapping_vietnam",
-        "join_col_source": "account_id",
-        "join_col_lookup": "account_id",
-        "target_cols": {"account_group_name": "account_group_name"}
-    }
-
-    mock_reader = MagicMock()
-    mock_reader.table.return_value = mapping_df
-    mock_format = MagicMock(return_value=mock_reader)
-
-    with patch.object(spark, "read", create=True) as mock_read:
-        mock_read.format = mock_format
-        result_df = apply_delta_lookup(source_df, params)
-
-    assert "account_group_name" in result_df.columns, "Derived column 'account_group_name' missing"
-    assert "account_id" not in result_df.columns, "Mapping join key 'account_id' should be dropped (left join keeps left key)"
-
-    rows = result_df.sort("account_id").collect()
-    assert rows[0]["account_group_name"] == "Gruppe A", f"Expected 'Gruppe A', got {rows[0]['account_group_name']}"
-    assert rows[1]["account_group_name"] == "Gruppe B", f"Expected 'Gruppe B', got {rows[1]['account_group_name']}"
-
-    print("test_apply_delta_lookup_success passed successfully")
-
-# METADATA ********************
-
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
-
-# CELL ********************
-
-def test_apply_delta_lookup_fails_on_unmatched(spark):
-    """
-    Tests that apply_delta_lookup raises an AssertionError when a source row has no mapping match.
-
-    - **What**: Validates the NULL-check assert inside 'apply_delta_lookup'.
-    - **How**: Source contains account 9999 which is absent from the mapping table.
-    - **Expectations**: An AssertionError is raised describing the unmatched column and count.
-    """
-
-    source_data = [(1001, "VCH-001"), (9999, "VCH-999")]
-    source_df = spark.createDataFrame(source_data, ["account_id", "voucher_number"])
-
-    mapping_data = [(1001, "Gruppe A")]
-    mapping_df = spark.createDataFrame(mapping_data, ["account_id", "account_group_name"])
-
-    params = {
-        "database": "lh_fabric_1",
-        "schema": "base",
-        "table": "sharepoint_mapping_vietnam",
-        "join_col_source": "account_id",
-        "join_col_lookup": "account_id",
-        "target_cols": {"account_group_name": "account_group_name"}
-    }
-
-    mock_reader = MagicMock()
-    mock_reader.table.return_value = mapping_df
-    mock_format = MagicMock(return_value=mock_reader)
-
-    error_raised = False
-    with patch.object(spark, "read", create=True) as mock_read:
-        mock_read.format = mock_format
-        try:
-            apply_delta_lookup(source_df, params)
-        except AssertionError as e:
-            error_raised = True
-            assert "account_group_name" in str(e), "Error message should mention the affected column"
-            assert "1 NULL" in str(e), "Error message should report 1 unmatched row"
-
-    assert error_raised, "Expected AssertionError for unmatched mapping row, but none was raised"
-
-    print("test_apply_delta_lookup_fails_on_unmatched passed successfully")
 
 # METADATA ********************
 
@@ -750,7 +462,6 @@ def test_apply_date_format_standard(spark):
 
     print("test_apply_date_format_standard passed successfully")
 
-
 def test_apply_date_format_aborts_on_invalid(spark):
     schema = StructType([
         StructField("id", IntegerType(), True),
@@ -781,7 +492,6 @@ def test_apply_date_format_aborts_on_invalid(spark):
 
     print("test_apply_date_format_aborts_on_invalid passed successfully")
 
-
 def test_apply_date_format_missing_source(spark):
     error_raised = False
     try:
@@ -792,7 +502,6 @@ def test_apply_date_format_missing_source(spark):
     assert error_raised, "Expected ValueError for missing source_column"
     print("test_apply_date_format_missing_source passed successfully")
 
-
 def test_apply_date_format_missing_formats(spark):
     error_raised = False
     try:
@@ -802,7 +511,6 @@ def test_apply_date_format_missing_formats(spark):
         assert "formats" in str(e)
     assert error_raised, "Expected ValueError for missing formats"
     print("test_apply_date_format_missing_formats passed successfully")
-
 
 def test_apply_date_format_formats_not_dict(spark):
     error_raised = False
@@ -849,18 +557,6 @@ test_replace_values(spark)
 
 # Test execution: regex replace values
 test_regex_replace_values(spark)
-
-# METADATA ********************
-
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
-
-# CELL ********************
-
-# Test execution: DACH cost center 464 reduction
-test_apply_dach_cost_center_reduction(spark)
 
 # METADATA ********************
 
@@ -932,11 +628,8 @@ test_apply_date_format_formats_not_dict(spark)
 # CELL ********************
 
 # Disabled tests
-# test_unnest_jira_comments(spark)
 # test_concat_columns(spark)
 # test_apply_lookup(spark)
-# test_apply_delta_lookup_success(spark)
-# test_apply_delta_lookup_fails_on_unmatched(spark)
 # test_map_array_values(spark)
 
 # METADATA ********************
@@ -946,13 +639,3 @@ test_apply_date_format_formats_not_dict(spark)
 # META   "language_group": "synapse_pyspark"
 # META }
 
-# CELL ********************
-
-test_apply_dach_cost_center_reduction(spark)
-
-# METADATA ********************
-
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
