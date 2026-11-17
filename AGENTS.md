@@ -45,7 +45,7 @@ Ein Lakehouse je Umgebung (`lh_dwh_dev` / `lh_dwh_prod`), Layer als Schemas. Tab
 - Workspaces: `ws_feature_*` (Feature-Branch) → `ws_dwh_dev` (Test) → `ws_dwh_prod`.
 - Umgebungsabhängige Werte (inkl. abfs-Pfade) ausschließlich aus der Variable Library; fabric-cicd setzt sie.
 - Notebook-IO (Tabellen und Landing-Dateien) ausschließlich über abfs-Pfade aus der Variable Library. Kein Default-Lakehouse, keine relativen Pfade, kein `spark.table`/`saveAsTable`. Ausnahme: MLVs.
-- Orchestrierung: Data Pipelines, Master + Subpipelines, Parameter `pRunHistlanding`, `pRunBase`, `pSourcesToRun`. MLV-Refresh per Pipeline-Aktivität. Alerting (MS Teams) liegt in der Pipeline; Notebooks werfen nur Exceptions.
+- Orchestrierung: Data Pipelines, Master + Subpipelines, Parameter `pRunHistlanding`, `pRunBase`, `pSourcesToRun`. MLV-Refresh per Pipeline-Aktivität. Alerting ausschließlich per E-Mail aus der Pipeline, keine Teams-Aktivität (Connection nicht teilbar); Notebooks werfen nur Exceptions.
 - Kadenz steuert ausschließlich `pSourcesToRun` (Pipeline-Schedules). Kein Notebook und keine Config entscheidet nach Datum oder Frequenz.
 - Capacity F2: keine unnötigen Full-Rebuilds, kein `cache`/`repartition` ohne Begründung, Spark-Settings nur über Environments.
 
@@ -71,7 +71,9 @@ Einstieg `notebooks/histlanding/nb_build_histlanding` und `notebooks/base/nb_bui
 - Casting erst in base.
 - Business Keys ausschließlich aus der Config.
 - Idempotenz: MERGE über Business Key + Change-Detection, kein blindes append. Leeres Change-Set → kein Write, damit keine neue Tabellenversion entsteht.
-- Doppelte Business Keys im Quell-Batch und in der Quelle gelöschte Zeilen: Verhalten offen (§9). Nicht selbst lösen, fragen.
+- Doppelte Business Keys im Quell-Batch: `nb_build_histlanding` dedupliziert vor dem Schreiben in die Delta-Tabelle (geplant). Dedup-Regel vor Umsetzung abstimmen.
+- In der Quelle gelöschte Zeilen: Verhalten offen (§9). Nicht selbst lösen, fragen.
+- DQ-Regeln über Great Expectations mit Severity: `info` → Log, `error` → Exception.
 - Secrets nur aus Azure Key Vault. Keine hartkodierten Secrets, Workspace- oder Lakehouse-IDs.
 - `.platform`-Dateien, logicalIds und Notebook-Metadaten (Lakehouse-Bindung) nie manuell ändern.
 
@@ -101,15 +103,15 @@ Einstieg `notebooks/histlanding/nb_build_histlanding` und `notebooks/base/nb_bui
 - Mapping-, Vorzeichen- oder Periodenlogik.
 - Neue Quelle, neues Fabric-Item, neue Library im Environment.
 - RBAC, OneLake Security, Shortcuts, Pipeline-Parameter, Schedules, Variable Library, Deployment-Konfiguration.
-- Daten mit Personenbezug, insbesondere Personalkosten.
+- Daten mit Personenbezug.
 - Alles aus §9.
 
 ## 9. Offene Entscheidungen (nie durch den Agent)
 
-- Historie: Retention-Werte und Wartungsregel (VACUUM / Table Maintenance) für histlanding · Dubletten mit gleichem Business Key · Umgang mit in der Quelle gelöschten Zeilen · Evolutionspfad bei Schemaänderung der Quelle
+- Historie: Retention-Werte und Wartungsregel (VACUUM / Table Maintenance) für histlanding · Umgang mit in der Quelle gelöschten Zeilen · Evolutionspfad bei Schemaänderung der Quelle
 - Build: Utils-Einbindung (`%run` vs. `notebook.run`) · Config-Vertrag · Variable Library (Name, Variablen, Value Sets inkl. `ws_feature_*`) · Shortcut-Transformation vs. pandas-Ingestion
 - Serving: Datenmodell · SCD2 · Namensschema `serving_<fachbereich>` / `lh_serving_<fachbereich>` · MLV-Refresh nur bei neuen Daten · Lakehouse-Bindung der MLV-Notebooks beim Deployment · Katalog-Sichtbarkeit pfadgeschriebener Tabellen für MLVs
-- Governance: RBAC-Konzept (inkl. Rechte über Shortcuts) · Personalkosten im DWH
+- Governance: feingranulares RBAC-Konzept (inkl. Rechte über Shortcuts) · Ablage der Great-Expectations-Regeln und -Ergebnisse
 
 ## 10. Project Learnings
 
