@@ -9,11 +9,12 @@ erweitern, sobald fehlende Berechtigungen bekannt werden.
 - **Engineering-Gruppe:** Admin in den Workspaces. Verwaltet alle Berechtigungen.
 - **Zentrale Gruppe der Fachbereiche:** Rolle **Viewer**
 
-## Datenzugriff über Shortcuts
+## Datenzugriff der Fachbereiche
 
-Die Serving-Daten bleiben in `lh_dwh_dev` / `lh_dwh_prod` und werden nicht kopiert. Der
-Fachbereich sieht sie über den Shortcut in `lh_serving_<fachbereich>` (Workspace
-`ws_serving_<fachbereich>`); die Governance greift über **OneLake Security**.
+Die Mart-Daten (`mart_<fachbereich>`) bleiben in `lh_dwh_dev` / `lh_dwh_prod` und werden nicht
+kopiert. Eine Bereitstellung über ein eigenes Lakehouse/einen eigenen Workspace per Shortcut gibt
+es **vorerst nicht**; sie wird erst nach Rücksprache mit dem Fachbereich entschieden, ob direkter
+Zugriff auf die Daten erforderlich ist. Greift sie, gilt **OneLake Security** als Governance.
 
 ## Secrets
 

@@ -17,15 +17,23 @@ Ob sie gegenüber der pandas-Ingestion zum Einsatz kommt, ist **offen** (`AGENTS
 ## Histlanding
 
 Schema `histlanding`. Ziel ist die **Historisierung** der Landing-Daten in Delta-Tabellen; es ist
-die **einzige Historie** der Plattform. Die Verarbeitung erfolgt in PySpark-Notebooks.
+die **einzige Historie** der Plattform.
 
-Besonderheit: Excel-Dateien werden über **pandas** gelesen und direkt in Spark-DataFrames
-überführt. Das Schema ist variabel, daher werden landing-seitig **alle Spalten als String**
-geführt. Vor dem Schreiben prüft ein **Schema-Check** Spaltenstruktur und Datentypen gegen das
-Soll-Schema aus der Config; eine Abweichung ist eine Exception und wird nie still angepasst.
-Casting findet erst in `base` statt.
+**Metadatenbasiert als Standard.** Standarddateien aus Quellsystemen (Parquet, JSON) werden
+config-getrieben verarbeitet; Verhalten pro Quelle und Entität steht ausschließlich in der Config.
 
-Sonderfall Excel: Ob Shortcut-Transformationen Infrage kommen, ist **offen**.
+**Excel über Custom-Notebook.** Excel-Dateien lassen sich nicht sinnvoll rein über Config
+abbilden und werden in einem eigenen Notebook gelesen. Dieses läuft auf einer **Single-Node-Engine**
+statt auf einem Spark-Cluster, um das Hochfahren der Spark-Session zu vermeiden und auf der F2
+schnell zu sein. Präferiert ist **DuckDB + delta-rs**; Alternativen sind **Polars + delta-rs** sowie
+DuckDB oder Polars mit Konvertierung in einen Spark-DataFrame und Merge über den `DeltaHandler`.
+Die Wahl ist **offen**, siehe [ADR 0003](../adr/0003-single-node-excel-ingestion.md). Entscheidend:
+Die Engine muss **MERGE** unterstützen, damit die Historie erhalten bleibt (kein `overwrite`).
+Packages kommen ausschließlich aus einem **Custom Environment**, nie per `pip install` in der Session.
+
+Das Schema ist variabel, daher werden Excel-Spalten als **String** geführt. Vor dem Schreiben prüft
+ein **Schema-Check** Spaltenstruktur und Datentypen gegen das Soll-Schema aus der Config; eine
+Abweichung ist eine Exception und wird nie still angepasst. Casting findet erst in `base` statt.
 
 ## Base
 
@@ -37,9 +45,9 @@ kommen ausschließlich aus der Config.
 Schreiben in die Delta-Tabelle bereinigt. Der Umgang mit in der Quelle gelöschten Zeilen ist
 **offen**.
 
-## Serving
+## Mart
 
-Pro Fachbereich existiert ein eigenes Schema `serving_<fachbereich>` im zentralen Lakehouse. Es
+Pro Fachbereich existiert ein eigenes Schema `mart_<fachbereich>` im zentralen Lakehouse. Es
 enthält das **dimensionale Modell** des Fachbereichs (Dimensionen und Faktentabellen in separaten
 Materialized Lake Views).
 
@@ -54,7 +62,8 @@ Datenmodell noch **offen**.
 
 ## Bereitstellung an die Fachbereiche
 
-Die Serving-Daten werden **nicht physisch kopiert**. Stattdessen liegt in einem eigenen Lakehouse
-`lh_serving_<fachbereich>` (Workspace `ws_serving_<fachbereich>`) ein **Shortcut** auf das
-jeweilige `serving_<fachbereich>`-Schema des zentralen Lakehouse. Die Rechte werden über
-**OneLake Security** gesteuert.
+Daten werden vorerst **nicht** über ein eigenes Lakehouse oder einen eigenen Workspace
+bereitgestellt. Erst nach Rücksprache mit dem jeweiligen Fachbereich, ob direkter Zugriff auf die
+Daten erforderlich ist, wird eine Bereitstellung (voraussichtlich per Shortcut, ohne Kopie, Rechte
+über OneLake Security) entschieden. Bis dahin ist sie **offen**, siehe
+[ADR 0002](../adr/0002-mart-layer.md).

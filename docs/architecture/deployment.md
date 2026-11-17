@@ -8,6 +8,17 @@ Paket **fabric-cicd**, nie manuell. Niemals Fabric's native Deployment Pipeline.
 Der Fokus liegt zunächst auf dem Deployment; DQ-Prüfungen
 werden schrittweise ergänzt.
 
+## CI-Workflow
+
+Vor dem Deployment laufen in GitHub Actions:
+
+- **Unit-Tests** (`unittest`): Die Fabric-Notebooks werden im CI-Workflow in Python-Dateien
+  konvertiert und als Tests ausgeführt. Das Verfahren ist **offen** und wird mit Simon R. (taod)
+  abgestimmt.
+- **Linting** des Codes mit **ruff**, gegebenenfalls auch der Dokumentation. Die Konfiguration
+  ist **offen**.
+- **Variable Libraries** definieren die Umgebungsparameter zentral (siehe unten).
+
 ## Umgebungen
 
 | Workspace | Zweck |
@@ -29,13 +40,20 @@ Umgebungsabhängige Werte, einschließlich der abfs-Pfade, kommen ausschließlic
 Spark-Settings werden ausschließlich über **Environments** gepflegt. So lässt sich die Compute
 je Workload individuell steuern.
 
+## Packages
+
+Es gibt **kein `pip install` in der Session**. Alle Packages (z. B. DuckDB, delta-rs für die
+Single-Node-Ingestion) werden in einem **Custom Environment** definiert. Die konkrete Paketliste
+mit Versionen ist **offen**.
+
 ## Capacity
 
 Fabric Capacity **F2**; dabei bleibt es vorerst. Eine kleinere SKU (F0) ist zur Kostenersparnis
 interessant, ihr Release ist **offen** und wird geprüft, sobald sie verfügbar ist.
 
-**Zu diskutieren:** Ob für histlanding und base reine Python-Notebooks (ohne Spark) auf der F2
-günstiger sind als PySpark. MLVs setzen weiterhin Spark voraus.
+Die Excel-Ingestion nach `histlanding` läuft auf einer Single-Node-Engine (Python-Notebook, ohne
+Spark-Cluster), siehe [ADR 0003](../adr/0003-single-node-excel-ingestion.md). Ob die Engine auch
+für `base` genutzt wird, ist **offen**. MLVs setzen weiterhin Spark voraus.
 
 ## Secrets
 

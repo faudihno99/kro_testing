@@ -19,13 +19,13 @@ Die **Kadenz** (monatlich DATEV, wöchentlich Eventim usw.) steuert ausschließl
 
 `nb_build_histlanding` und `nb_build_base` sind dünne Einstiegspunkte: Configs per `%run` laden,
 nach `pSourcesToRun` filtern, abfs-Pfade einmal aus der Variable Library auflösen, Preflight für
-alle gewählten Quellen vor dem ersten Schreibzugriff, dann Verarbeitung über die Utils.
+alle gewählten Quellen vor dem ersten Schreibzugriff, dann Verarbeitung über die Utils. Das Excel-Lesen läuft in einem separaten Custom-Notebook auf einer Single-Node-Engine (kein Spark-Start).
 
 Notebook-Aktivitäten mit High-Concurreny und Session-Tag optimieren.
 
-## Serving-Refresh
+## Mart-Refresh
 
-Die Materialized Lake Views in `serving_*` werden über die Pipeline-Aktivität **„Refresh MLV“**
+Die Materialized Lake Views in `mart_*` werden über die Pipeline-Aktivität **„Refresh MLV“**
 aktualisiert (alternativ per Notebook, mit bekannten Limitationen).
 
 ## Fehlerbehandlung und Alerting

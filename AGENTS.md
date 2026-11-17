@@ -9,6 +9,7 @@ Vorrang vor allem anderen in dieser Datei.
 - Nie gegen `ws_dwh_prod` ausführen, deployen oder auf `main` mergen.
 - `histlanding` ist die einzige Historie (Delta Time Travel). Tabellen im Schema `histlanding` nie droppen, neu anlegen, mit `overwrite`/`overwriteSchema` schreiben, truncaten oder mit verkürzter Retention vacuumen. Full-Rebuild nur nach Rückfrage.
 - Fail early: Jeder Fehler ist eine Exception und bricht den Lauf ab. Kein try/except, das Fehler schluckt, kein Teilergebnis, kein `notebookutils.notebook.exit()` mit Fehlertext.
+- Kein `pip install` in der Session. Packages ausschließlich über das Custom Environment (Definition per Rückfrage, §8).
 - Nichts erfinden: Tabellen, Spalten, Sachkonten, Kostenträger, Fabric-/notebookutils-APIs, Spark-Configs, IDs, Config-Keys, Variablen der Variable Library. Unbekannt → Datei lesen oder fragen.
 - Falsche Prämisse → widersprechen, bevor gearbeitet wird. Zwei plausible Interpretationen → fragen, nicht still entscheiden.
 - Nur ändern, was die Aufgabe verlangt. Keine Drive-by-Refactorings. Selbst erzeugte Waisen (Imports, Funktionen) aufräumen.
@@ -16,7 +17,8 @@ Vorrang vor allem anderen in dieser Datei.
 
 ## 1. Commands
 
-- Tests: TODO (Ausführung der `nb_test_*`-Notebooks in Fabric)
+- Tests: `nb_test_*`-Notebooks in Fabric (`unittest`). CI: Notebooks werden im CI-Workflow in Python-Dateien konvertiert und dort ausgeführt; Umsetzung offen (§9).
+- Lint: `ruff` (Code), ggf. Doku. Konfiguration offen (§9).
 - Deploy: ausschließlich GitHub Actions (fabric-cicd). Nie manuell.
 
 ## 2. Domäne (nur was Code beeinflusst)
@@ -36,11 +38,11 @@ Ein Lakehouse je Umgebung (`lh_dwh_dev` / `lh_dwh_prod`), Layer als Schemas. Tab
 | Layer | Ort | Technik |
 |---|---|---|
 | landing | Files-Section | OneLake-Shortcut → SharePoint, keine Logik |
-| histlanding | Schema `histlanding` | PySpark; Excel via pandas, alle Spalten als String |
+| histlanding | Schema `histlanding` | Standardformate (Parquet, JSON): config-getrieben. Excel: Custom-Notebook auf Single-Node-Engine (Engine-Wahl offen, §9), alle Spalten als String |
 | base | Schema `base` | PySpark: Renaming, Casting, Dedup, Formate |
-| serving_<fachbereich> | eigenes Schema je Fachbereich | Materialized Lake Views (Spark SQL) |
+| mart_<fachbereich> | eigenes Schema je Fachbereich | Materialized Lake Views (Spark SQL) |
 
-- Serving-Bereitstellung per Shortcut in `lh_serving_*` (Workspaces `ws_serving_*`), keine Kopie. Rechte über OneLake Security.
+- Keine Bereitstellung über `lh_serving_*` / `ws_serving_*`. Erst nach Rücksprache mit dem Fachbereich, ob direkter Datenzugriff nötig ist; dann Rückfrage. Rechte über OneLake Security.
 - Nur Lakehouse. Kein Warehouse, keine Dataflows Gen2, keine neuen Item-Typen ohne Rückfrage.
 - Workspaces: `ws_feature_*` (Feature-Branch) → `ws_dwh_dev` (Test) → `ws_dwh_prod`.
 - Umgebungsabhängige Werte (inkl. abfs-Pfade) ausschließlich aus der Variable Library; fabric-cicd setzt sie.
@@ -48,6 +50,7 @@ Ein Lakehouse je Umgebung (`lh_dwh_dev` / `lh_dwh_prod`), Layer als Schemas. Tab
 - Orchestrierung: Data Pipelines, Master + Subpipelines, Parameter `pRunHistlanding`, `pRunBase`, `pSourcesToRun`. MLV-Refresh per Pipeline-Aktivität. Alerting ausschließlich per E-Mail aus der Pipeline, keine Teams-Aktivität (Connection nicht teilbar); Notebooks werfen nur Exceptions.
 - Kadenz steuert ausschließlich `pSourcesToRun` (Pipeline-Schedules). Kein Notebook und keine Config entscheidet nach Datum oder Frequenz.
 - Capacity F2: keine unnötigen Full-Rebuilds, kein `cache`/`repartition` ohne Begründung, Spark-Settings nur über Environments.
+- Single-Node-Engine statt Spark-Cluster für Excel-Ingestion (Start-Zeit und F2-Kosten vermeiden). Packages und Versionen im Custom Environment, nie zur Laufzeit installieren.
 
 ## 4. Build-Ablauf (config-getrieben)
 
@@ -59,8 +62,9 @@ Einstieg `notebooks/histlanding/nb_build_histlanding` und `notebooks/base/nb_bui
 4. Preflight für alle gewählten Quellen, vor dem ersten Schreibzugriff: Config-Struktur, Dateiverfügbarkeit, Schema-Check, aufgelöster Pfad passt zur laufenden Umgebung.
 5. `process_histlanding` bzw. `process_base` aus den Utils aufrufen.
 
+- Grundsatz metadatenbasiert: Standardwege laufen über Config. Standarddateien (Parquet, JSON) in histlanding config-getrieben, base in der Regel immer config-getrieben.
 - Verhalten pro Quelle und Entität nur über Config. Neue Entität = neuer Config-Eintrag. Erfordert sie Codeänderung → erst fragen.
-- Sonderfälle: Custom Function in den Utils, von der Config referenziert. Keine entitätsspezifischen Notebooks.
+- Custom-Lösungen sind die Ausnahme: Excel-Lesen in histlanding per Custom-Notebook (Name offen). Sonstige Sonderfälle: Custom Function in den Utils, von der Config referenziert. Keine entitätsspezifischen Notebooks.
 - Configs: ein Notebook pro Quelle (Python-Dict) in `notebooks/<layer>/configs/`. Config-Vertrag ist offen → bestehende Configs als Vorlage lesen, sonst fragen.
 - Utils und Tests: `notebooks/<layer>/utils/` (z. B. `nb_utils_general_histlanding`, `nb_test_general_histlanding`).
 - Naming: `nb_build_<layer>`, `nb_utils_<thema>`, `nb_test_<thema>`. Tabellen und Spalten snake_case.
@@ -71,6 +75,7 @@ Einstieg `notebooks/histlanding/nb_build_histlanding` und `notebooks/base/nb_bui
 - Casting erst in base.
 - Business Keys ausschließlich aus der Config.
 - Idempotenz: MERGE über Business Key + Change-Detection, kein blindes append. Leeres Change-Set → kein Write, damit keine neue Tabellenversion entsteht.
+- Single-Node-Pfad (DuckDB/Polars + delta-rs): Merge-Fähigkeit von delta-rs inkl. Kompatibilität mit den Delta-Table-Features der Fabric-Tabellen ist vor dem ersten Write nach histlanding zu prüfen. Nur Merge, nie overwrite (§0).
 - Doppelte Business Keys im Quell-Batch: `nb_build_histlanding` dedupliziert vor dem Schreiben in die Delta-Tabelle (geplant). Dedup-Regel vor Umsetzung abstimmen.
 - In der Quelle gelöschte Zeilen: Verhalten offen (§9). Nicht selbst lösen, fragen.
 - DQ-Regeln über Great Expectations mit Severity: `info` → Log, `error` → Exception.
@@ -96,6 +101,7 @@ Einstieg `notebooks/histlanding/nb_build_histlanding` und `notebooks/base/nb_bui
 - Fehler an der Ursache beheben, nicht den Test anpassen.
 - Nach zwei gescheiterten Korrekturen am selben Problem: stoppen, Erkenntnisse zusammenfassen, Reset vorschlagen.
 - Doku (`docs/`) wird in derselben Änderung wie der Code gepflegt, nie nachgelagert. Betrifft eine Änderung Architektur, Naming, Orchestrierung, Datenqualität, Deployment oder Zugriff, die passende Seite in `docs/architecture/` bzw. `docs/security/` aktualisieren. Jede inhaltliche Änderung bekommt einen Eintrag in `docs/CHANGELOG.md`. Neue Architekturentscheidung → ADR in `docs/adr/`. Neue Doku-Seite → in `docs/index.md` verlinken. Widerspricht die Doku dem Code, beides abgleichen und den Widerspruch nennen. Offene Entscheidungen (§9) nie als entschieden dokumentieren. Vor „fertig“ prüfen, ob `docs/` betroffen ist.
+- CI (GitHub Actions): Unit-Tests (Notebook→Python-Konvertierung) und Linting mit `ruff` vor dem Deployment. Umgebungsparameter zentral in der Variable Library.
 - Git: Feature-Branches, Review vor Merge. Commit-Subject < 72 Zeichen, Body erklärt das Warum. Kein „Co-Authored-By: Claude“.
 
 ## 8. Fragen statt handeln
@@ -110,8 +116,8 @@ Einstieg `notebooks/histlanding/nb_build_histlanding` und `notebooks/base/nb_bui
 ## 9. Offene Entscheidungen (nie durch den Agent)
 
 - Historie: Retention-Werte und Wartungsregel (VACUUM / Table Maintenance) für histlanding · Umgang mit in der Quelle gelöschten Zeilen · Evolutionspfad bei Schemaänderung der Quelle
-- Build: Utils-Einbindung (`%run` vs. `notebook.run`) · Config-Vertrag · Variable Library (Name, Variablen, Value Sets inkl. `ws_feature_*`) · Shortcut-Transformation vs. pandas-Ingestion
-- Serving: Datenmodell · SCD2 · Namensschema `serving_<fachbereich>` / `lh_serving_<fachbereich>` · MLV-Refresh nur bei neuen Daten · Lakehouse-Bindung der MLV-Notebooks beim Deployment · Katalog-Sichtbarkeit pfadgeschriebener Tabellen für MLVs
+- Build: Utils-Einbindung (`%run` vs. `notebook.run`) · Config-Vertrag · Variable Library (Name, Variablen, Value Sets inkl. `ws_feature_*`) · Engine-Wahl Excel-Ingestion (präferiert DuckDB + delta-rs; Alternativen Polars + delta-rs, DuckDB/Polars + Spark-DF-Konvertierung mit Merge über DeltaHandler) inkl. Prüfung der delta-rs-Merge-Fähigkeit · Paketliste des Custom Environment · CI-Details (Notebook→Python-Konvertierung, ruff-Konfiguration; Abstimmung mit Simon R., taod)
+- Mart: Datenmodell · SCD2 · Bereitstellung an Fachbereiche (ob und wie, nach Rücksprache) · MLV-Refresh nur bei neuen Daten · Lakehouse-Bindung der MLV-Notebooks beim Deployment · Katalog-Sichtbarkeit pfadgeschriebener Tabellen für MLVs
 - Governance: feingranulares RBAC-Konzept (inkl. Rechte über Shortcuts) · Ablage der Great-Expectations-Regeln und -Ergebnisse
 
 ## 10. Project Learnings

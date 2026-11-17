@@ -10,21 +10,20 @@ verwaltet und sehen darf.
 | `ws_feature_*` | Dev-Workspaces für Arbeit in Feature-Branches |
 | `ws_dwh_dev` | Test-Workspace |
 | `ws_dwh_prod` | Produktions-Workspace |
-| `ws_serving_<fachbereich>` | Bereitstellung für den Fachbereich, Zugriff über Shortcut |
 
-Standardmäßig existieren zwei DWH-Workspaces (`ws_dwh_dev`, `ws_dwh_prod`) plus die
-fachbereichsspezifischen Serving-Workspaces.
+Standardmäßig existieren zwei DWH-Workspaces (`ws_dwh_dev`, `ws_dwh_prod`). Eigene Workspaces je
+Fachbereich gibt es vorerst nicht; sie kommen erst nach Rücksprache mit dem Fachbereich
+(siehe [ADR 0002](../adr/0002-mart-layer.md)).
 
 ## Lakehouses
 
 Es gibt **ein Lakehouse je Umgebung** (`lh_dwh_dev` / `lh_dwh_prod`), in dem die Layer als
-Schemas liegen. Je Fachbereich kommt ein Serving-Lakehouse `lh_serving_<fachbereich>` hinzu, das
-per Shortcut auf das zentrale Lakehouse zeigt.
+Schemas liegen. Weitere Lakehouses für Fachbereiche gibt es vorerst nicht.
 
 ## Schemas
 
 Die Layer sind Schemas im zentralen Lakehouse: `histlanding`, `base` und je Fachbereich
-`serving_<fachbereich>`. Neue Layer werden nicht als eigenes Lakehouse angelegt.
+`mart_<fachbereich>`. Neue Layer werden nicht als eigenes Lakehouse angelegt.
 
 ## Tabellen und Spalten
 
@@ -45,4 +44,4 @@ Benennung nach Funktion:
 
 Configs liegen unter `notebooks/<layer>/configs/`. Utils werden nach Thema geschnitten, etwa
 Delta-Handling, Landing-SharePoint-Zugriff und Logging. Die Einbindung erfolgt per `%run` mit
-festem Notebook-Namen.
+festem Notebook-Namen. Das Excel-Lese-Notebook ist ein Custom-Notebook (Name offen).

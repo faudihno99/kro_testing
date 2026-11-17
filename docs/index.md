@@ -21,15 +21,14 @@ sie als **entschieden**.
 ## Gesamtbild
 
 Alle Layer liegen als Schemas in einem zentralen Lakehouse je Umgebung. Die Daten durchlaufen
-vier Stufen; die Auslieferung an die Fachbereiche erfolgt über Shortcuts, ohne physische Kopie.
+vier Stufen; die Daten werden im Mart je Fachbereich bereitgestellt. Eine separate Bereitstellung per Shortcut ist zurückgestellt, bis der Fachbereich direkten Datenzugriff bestätigt.
 
 ```mermaid
 flowchart LR
   Q["Quellsysteme<br/>SharePoint, DATEV, theasoft, Eventim"] --> L["landing<br/>Files-Section, Shortcut"]
   L --> H["histlanding<br/>Delta, PySpark"]
   H --> B["base<br/>PySpark"]
-  B --> S["serving_fachbereich<br/>MLV / PySpark"]
-  S --> SH["lh_serving_fachbereich<br/>Shortcut + OneLake Security"]
+  B --> S["mart_fachbereich<br/>MLV / PySpark"]
   P["Fabric Data Pipelines"] -.->|"orchestriert"| H
   P -.-> B
   P -.-> S
@@ -40,9 +39,9 @@ flowchart LR
 | Layer | Ort | Technik |
 |---|---|---|
 | landing | Files-Section des zentralen Lakehouse | OneLake-Shortcut auf SharePoint, keine Logik |
-| histlanding | Schema `histlanding` | PySpark; Excel via pandas, alle Spalten als String |
+| histlanding | Schema `histlanding` | Standardformate (Parquet, JSON) config-getrieben; Excel über Custom-Notebook auf Single-Node-Engine, alle Spalten als String |
 | base | Schema `base` | PySpark: Renaming, Casting, Dedup, Formate |
-| serving_&lt;fachbereich&gt; | eigenes Schema je Fachbereich | Materialized Lake Views (Spark SQL), sonst PySpark |
+| mart_&lt;fachbereich&gt; | eigenes Schema je Fachbereich | Materialized Lake Views (Spark SQL), sonst PySpark |
 
 ## Dokumente
 
@@ -56,7 +55,9 @@ flowchart LR
 - [Architecture · Data Quality](architecture/data-quality.md) – Schema-Check, Great Expectations
 - [Architecture · Deployment](architecture/deployment.md) – CI/CD, Umgebungen, Capacity
 - [Security · Access Control](security/access-control.md) – Workspaces, Entra-Gruppen, OneLake Security
-- [ADR · Storage Zone Layout](adr/0001-storage-zone-layout.md)
+- [ADR 0001 · Storage Zone Layout](adr/0001-storage-zone-layout.md)
+- [ADR 0002 · Mart-Layer ohne Serving-Lakehouse](adr/0002-mart-layer.md)
+- [ADR 0003 · Single-Node-Engine für Excel-Ingestion](adr/0003-single-node-excel-ingestion.md)
 - [CHANGELOG](CHANGELOG.md)
 
 ## Offene Punkte (Überblick)
@@ -64,16 +65,18 @@ flowchart LR
 Die folgenden Themen sind bewusst unentschieden. Sie sind hier gesammelt, damit sie auffindbar
 bleiben:
 
-- Datenmodell für `serving_*` (dimensionales Modell noch unbekannt).
-- Ob eine Historisierung (SCD2) in `serving_*` gewünscht ist und damit MLV oder PySpark.
-- Config-getriebene Build-Notebooks vs. einzelne Notebooks je Entität.
+- Datenmodell für `mart_*` (dimensionales Modell noch unbekannt).
+- Ob eine Historisierung (SCD2) in `mart_*` gewünscht ist und damit MLV oder PySpark.
+- Bereitstellung an Fachbereiche (`lh_`/`ws_`-Shortcut): erst nach Rücksprache, ob direkter Zugriff nötig ist.
+- Engine-Wahl für die Excel-Ingestion (DuckDB + delta-rs präferiert) und Prüfung der delta-rs-Merge-Fähigkeit.
+- Paketliste des Custom Environment.
+- CI-Details: Notebook→Python-Konvertierung für Unit-Tests, ruff-Konfiguration (Abstimmung mit Simon R., taod).
 - Umgang mit in der Quelle gelöschten Zeilen.
-- Shortcut-Transformation vs. pandas-Ingestion.
 - Retention-Werte und Wartungsregel (VACUUM / Table Maintenance) für `histlanding`.
 - Feingranulares RBAC-Konzept.
 - Ablage der Great-Expectations-Regeln und -Ergebnisse.
 - Variable Library: Name, Variablen, Value Sets.
-- Zu diskutieren: Python-Notebooks statt PySpark für histlanding/base auf der F2.
+- Ob die Single-Node-Engine über die Excel-Ingestion hinaus auch für base eingesetzt wird.
 - F0: prüfen, sobald verfügbar.
 - Katalog-Sichtbarkeit pfadgeschriebener Tabellen für MLVs.
 - Lakehouse-Bindung der MLV-Notebooks beim Deployment.
