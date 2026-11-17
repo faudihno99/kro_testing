@@ -41,7 +41,7 @@ Benennung nach Funktion:
 | `nb_build_<layer>` | zentrales, entitätsunabhängiges Build-Notebook (`nb_build_histlanding`, `nb_build_base`) |
 | `nb_utils_<thema>` | Utils, thematisch gruppiert |
 | `nb_test_<thema>` | Unit-Tests zum jeweiligen Thema |
-| `nb_config_<quelle>_<layer>` | Config-Notebook je Quelle (Python-Dict) |
+| `nb_config_<layer>_<quelle>` | Config-Notebook je Quelle (Python-Dict) |
 
 Configs liegen unter `notebooks/<layer>/configs/`. Utils werden nach Thema geschnitten, etwa
 Delta-Handling, Landing-SharePoint-Zugriff und Logging. Die Einbindung erfolgt per `%run` mit

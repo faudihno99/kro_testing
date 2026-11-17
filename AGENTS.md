@@ -95,6 +95,7 @@ Einstieg `notebooks/histlanding/nb_build_histlanding` und `notebooks/base/nb_bui
 - Nie „fertig“ ohne gelesene Ausführungsausgabe. Nicht ausführbar → sagen, was ungeprüft ist.
 - Fehler an der Ursache beheben, nicht den Test anpassen.
 - Nach zwei gescheiterten Korrekturen am selben Problem: stoppen, Erkenntnisse zusammenfassen, Reset vorschlagen.
+- Doku (`docs/`) wird in derselben Änderung wie der Code gepflegt, nie nachgelagert. Betrifft eine Änderung Architektur, Naming, Orchestrierung, Datenqualität, Deployment oder Zugriff, die passende Seite in `docs/architecture/` bzw. `docs/security/` aktualisieren. Jede inhaltliche Änderung bekommt einen Eintrag in `docs/CHANGELOG.md`. Neue Architekturentscheidung → ADR in `docs/adr/`. Neue Doku-Seite → in `docs/index.md` verlinken. Widerspricht die Doku dem Code, beides abgleichen und den Widerspruch nennen. Offene Entscheidungen (§9) nie als entschieden dokumentieren. Vor „fertig“ prüfen, ob `docs/` betroffen ist.
 - Git: Feature-Branches, Review vor Merge. Commit-Subject < 72 Zeichen, Body erklärt das Warum. Kein „Co-Authored-By: Claude“.
 
 ## 8. Fragen statt handeln

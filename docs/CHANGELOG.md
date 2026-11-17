@@ -7,6 +7,7 @@ Versionierung über Git-Tags (`docs-vX.Y`).
 
 ### Added
 - Initiale Sollbeschreibung der Datenarchitektur unter `docs/` (Index, Architecture, Security, ADR).
+- Architecture Overview (`architecture/overview.md`): Datenfluss, Workspace-Struktur, Building Blocks.
 - ADR 0001 – Storage Zone Layout (Accepted).
 - Architecture: Sources, Orchestration, Deployment, Data Quality.
 

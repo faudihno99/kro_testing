@@ -18,4 +18,5 @@ Darüber hinaus werden DQ-Regeln mit **Great Expectations** formuliert. Gründe:
 | `info` | Ergebnis wird geloggt, der Lauf geht weiter |
 | `error` | Exception, der Lauf bricht ab |
 
-Wo Regeln und Ergebnisse abgelegt werden, ist **offen**.
+Ergebnisse werden in monitoring-tabelle geschrieben: monitoring.gx_results
+Regeln in Verarbeitung von Base.

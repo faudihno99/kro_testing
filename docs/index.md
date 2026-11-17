@@ -46,6 +46,7 @@ flowchart LR
 
 ## Dokumente
 
+- [Architecture · Overview](architecture/overview.md) – Gesamtbild: Datenfluss, Workspaces, Building Blocks
 - [Architecture · Storage Layers](architecture/storage-layers.md) – Layer, Orte, Techniken, Fluss
 - [Architecture · Sources](architecture/sources.md) – Quellen, Kadenz, zentraler Schlüssel
 - [Architecture · Formats](architecture/formats.md) – Dateiformate

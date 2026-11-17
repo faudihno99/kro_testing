@@ -7,7 +7,7 @@ erweitern, sobald fehlende Berechtigungen bekannt werden.
 ## Workspace-Rollen
 
 - **Engineering-Gruppe:** Admin in den Workspaces. Verwaltet alle Berechtigungen.
-- **Zentrale Gruppe der Fachbereiche:** Rolle **Viewer**.
+- **Zentrale Gruppe der Fachbereiche:** Rolle **Viewer**
 
 ## Datenzugriff über Shortcuts
 

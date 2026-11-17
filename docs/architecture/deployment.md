@@ -3,7 +3,9 @@
 ## Git und CI/CD
 
 Der Code liegt in **GitHub**. Deployments laufen ausschließlich über **GitHub Actions** mit dem
-Paket **fabric-cicd**, nie manuell. Der Fokus liegt zunächst auf dem Deployment; DQ-Prüfungen
+Paket **fabric-cicd**, nie manuell. Niemals Fabric's native Deployment Pipeline.
+
+Der Fokus liegt zunächst auf dem Deployment; DQ-Prüfungen
 werden schrittweise ergänzt.
 
 ## Umgebungen

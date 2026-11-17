@@ -10,16 +10,18 @@ Session-Starts zu sparen.
 |---|---|
 | `pRunHistlanding` | Lauf der histlanding-Stufe an/aus |
 | `pRunBase` | Lauf der base-Stufe an/aus |
-| `pSourcesToRun` | Auswahl der Quellen für diesen Lauf |
+| `pSourcesToRun` | Auswahl der Quellen für diesen Lauf, default ["sharepoint"] |
 
 Die **Kadenz** (monatlich DATEV, wöchentlich Eventim usw.) steuert ausschließlich `pSourcesToRun`
-über die Pipeline-Schedules. Kein Notebook und keine Config entscheidet nach Datum oder Frequenz.
+über die Pipeline-Schedules / Trigger-Notebooks. Kein Notebook und keine Config entscheidet nach Datum oder Frequenz.
 
 ## Build-Notebooks
 
 `nb_build_histlanding` und `nb_build_base` sind dünne Einstiegspunkte: Configs per `%run` laden,
 nach `pSourcesToRun` filtern, abfs-Pfade einmal aus der Variable Library auflösen, Preflight für
 alle gewählten Quellen vor dem ersten Schreibzugriff, dann Verarbeitung über die Utils.
+
+Notebook-Aktivitäten mit High-Concurreny und Session-Tag optimieren.
 
 ## Serving-Refresh
 
